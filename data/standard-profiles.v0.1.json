@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "0.1.0",
+  "units": "millimeters",
+  "profiles": [
+    {
+      "id": "R",
+      "name": "Regular Oval",
+      "axisRatio": 1.1505355135613842,
+      "status": "reference-calibrated",
+      "reference": {
+        "source": "BMFS v0.2 opening model",
+        "circumferenceMm": 570,
+        "lengthMm": 193.9,
+        "widthMm": 168.53
+      }
+    },
+    { "id": "RO", "name": "Round Oval", "axisRatio": 1.1, "status": "provisional" },
+    { "id": "LO", "name": "Long Oval", "axisRatio": 1.2, "status": "provisional" },
+    { "id": "XLO", "name": "Extra-Long Oval", "axisRatio": 1.25, "status": "experimental" }
+  ]
+}
+

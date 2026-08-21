@@ -1,6 +1,6 @@
-# Blocksmith
+# Blocksmith for Hat Makers
 
-**Blocksmith Studio — The Milliner's Workstation** is a free, local-first system for designing, preparing, printing, using, and preserving parametric hatmaking tooling.
+**Blocksmith for Hat Makers — The Milliner's Workstation** is a free, local-first system for designing, preparing, printing, using, and preserving parametric hatmaking tooling.
 
 > Built by Rich and Codex—because the cost of making a hat was just too damn high.
 
@@ -33,6 +33,16 @@ Blocksmith is pre-alpha engineering software. The interface deliberately disting
 - The pin-fit workflow preserves the empirical 3.00–3.50 mm horizontal-hole coupon. Prototype 003 established 3.15 mm modeled holes for the measured 3.00 mm pins used in that test; every printer/material combination must still be calibrated.
 
 Read [Geometry Status](docs/GEOMETRY_STATUS.md) before printing. The latest simulated first-use walkthrough and the remaining live-participant questions are in [New-User Test Results](docs/NEW_USER_TEST_RESULTS_2026-08-18.md).
+
+## Release-rights status
+
+The geometry and source have a documented clean-room foundation, but this branch is **not yet approved for public release**. The remaining rights gates are:
+
+- attorney clearance of the full name **Blocksmith for Hat Makers**, because an existing BLOCKSMITH registration and adjacent historical use involve 3D-creation software;
+- replacement or conclusive source records for the six development visual assets listed in [Asset Provenance](docs/ASSET_PROVENANCE.md); and
+- completion of the exact-build checklist in [Pre-Release Rights and Provenance Checklist](docs/RELEASE_LEGAL_CHECKLIST.md).
+
+See [Name Clearance](docs/NAME_CLEARANCE_2026-08-20.md), [Provenance](docs/PROVENANCE.md), and [Trademark Policy](TRADEMARKS.md).
 
 ## Local development
 
@@ -77,6 +87,7 @@ Blocksmith is free and open source. If the project helps your shop and you would
 
 ## Licensing
 
-Software in this initial repository is offered under **GNU AGPL-3.0-or-later**. The intended multi-license structure for future printable hardware and documentation is recorded in [LICENSING.md](docs/LICENSING.md) and remains subject to legal review before a public production release.
+Software is offered under **GNU AGPL-3.0-or-later**. Printable hardware source and governed physical-tool geometry are offered under **CERN-OHL-S-2.0**. Cleared project documentation and educational/illustration material are offered under **CC BY-SA 4.0**. File and directory boundaries are defined in [LICENSING.md](docs/LICENSING.md), and complete license texts are included in the repository.
 
-Contributions use Developer Certificate of Origin sign-off; see [CONTRIBUTING.md](CONTRIBUTING.md).
+Third-party packages remain under their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Contributions use Developer Certificate of Origin sign-off; see [CONTRIBUTING.md](CONTRIBUTING.md).
+

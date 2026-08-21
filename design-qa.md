@@ -31,7 +31,7 @@ No actionable P0, P1, or P2 differences remain.
 - Fonts and typography: Georgia/Times serif fallbacks reproduce the source's historical editorial character, uppercase hierarchy, compact labels, and restrained letter spacing. The source's engraved display face is not bundled; this is acceptable P3 drift.
 - Spacing and layout rhythm: the final 1200 px workstation uses 0.9 / 2.1 / 0.9 columns, a 405 px preview, and fixed bench/footer heights. At the verified viewport all three main panels have equal 509 px client and scroll heights, so no panel or persistent control is clipped.
 - Colors and visual tokens: dark wood-black panels, aged parchment, muted brass, green readiness, amber selection, and warm cream copy closely track the source. Focus states remain intentionally brighter for accessibility.
-- Image quality and asset fidelity: the supplied source remains the full-bleed workshop backdrop. Five purpose-made 900 x 600 WebP finished-hat intent assets replace the initial schematic approximation and share the source's sepia wireframe drafting style. The manufacturing preview remains a live analytical canvas and is explicitly separated from finished-hat imagery.
+- Image quality and asset fidelity: the development source remains the full-bleed workshop backdrop. Five 900 x 600 WebP finished-hat intent assets replace the initial schematic approximation and share the source's sepia wireframe drafting style. These six binaries pass the visual QA gate but are not cleared for public release until replaced or conclusively documented in `docs/ASSET_PROVENANCE.md`. Visual QA and rights clearance are separate gates. The manufacturing preview remains a live analytical canvas and is explicitly separated from finished-hat imagery.
 - Copy and content: the implementation preserves the source's core labels while adding necessary safety and validation language. “Concept view only” and “prototype export” wording prevent the illustrative hat from being mistaken for manufacturing geometry.
 
 ## Full-view and focused comparison evidence
@@ -76,4 +76,7 @@ No actionable P0, P1, or P2 differences remain.
 - [x] Verify the end-to-end Hat Project journey and persistence.
 - [x] Rebuild and rerun automated checks after final changes.
 
-final result: passed
+final visual result: passed
+
+rights-clearance result: held — see `docs/ASSET_PROVENANCE.md`
+

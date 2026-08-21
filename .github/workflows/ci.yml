@@ -2,7 +2,7 @@ name: Validate Blocksmith
 
 on:
   push:
-    branches: [main, "agent/**"]
+    branches: [main, "agent/**", "feature/**"]
   pull_request:
 
 permissions:

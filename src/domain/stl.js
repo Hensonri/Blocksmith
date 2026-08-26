@@ -43,6 +43,5 @@ export function downloadText(filename, text, type = "text/plain;charset=utf-8") 
   document.body.append(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
-

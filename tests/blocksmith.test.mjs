@@ -5,6 +5,15 @@ import { createOpenCrownMesh, validateMesh } from "../src/domain/geometry.js";
 import { createDefaultProject, parseProjectFile } from "../src/domain/project.js";
 import { displayHatSize, ellipseAxesForCircumference, hatSizeToCircumferenceMm, hatSizeToToolingCircumferenceMm, PROFILE_CATALOG } from "../src/domain/profiles.js";
 import { meshToAsciiStl } from "../src/domain/stl.js";
+import { detectPlatform } from "../src/domain/analytics.js";
+
+test("platform detection groups current desktop and mobile systems", () => {
+  assert.equal(detectPlatform({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }), "Windows");
+  assert.equal(detectPlatform({ userAgent: "Mozilla/5.0 (X11; CrOS x86_64 16093.71.0)" }), "ChromeOS");
+  assert.equal(detectPlatform({ userAgent: "Mozilla/5.0 (Linux; Android 15)" }), "Android");
+  assert.equal(detectPlatform({ platform: "MacIntel", userAgent: "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) Mobile" }), "iOS/iPadOS");
+  assert.equal(detectPlatform({ platform: "Linux x86_64" }), "Linux");
+});
 
 test("R profile reproduces the BMFS v0.2 570 mm reference opening", () => {
   const axes = ellipseAxesForCircumference(570, PROFILE_CATALOG.R.ratio);

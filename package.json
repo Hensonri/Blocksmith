@@ -15,13 +15,18 @@
     "preview": "vite preview",
     "test": "node --test tests/blocksmith.test.mjs",
     "check": "npm run test && npm run build && npm run test:sites",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.mjs",
     "test:sites": "node --test tests/sites-worker.test.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "5.0.4",
-    "vite": "6.4.2",
+    "drizzle-orm": "^0.44.7",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "vite": "6.4.2"
   },
-  "devDependencies": {}
+  "displayName": "Blocksmith Online Workshop",
+  "devDependencies": {
+    "drizzle-kit": "^0.31.6"
+  }
 }

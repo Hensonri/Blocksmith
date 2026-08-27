@@ -1,21 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { HatPreview, INTENT_IMAGES } from "./components/HatPreview.jsx";
+import { HatPreview } from "./components/HatPreview.jsx";
 import { calibrationIsComplete, HOLE_OPTIONS_MM, pinFitCouponScad, xyScaleSuggestion } from "./domain/calibration.js";
 import { createOpenCrownMesh, validateMesh } from "./domain/geometry.js";
 import { createDefaultProject, parseProjectFile, touchProject } from "./domain/project.js";
 import { displayHatSize, formatMeasurement, getProfile, HAT_SIZE_OPTIONS, MM_PER_INCH, openingForProject, PROFILE_CATALOG } from "./domain/profiles.js";
 import { downloadText, meshToAsciiStl } from "./domain/stl.js";
+import { trackUsageEvent } from "./domain/analytics.js";
 
 const STORAGE_KEY = "blocksmith.project.v0.1";
 const WORKFLOW = ["Capture", "Design", "Prepare", "Print", "Use", "Verify", "Save Project"];
-const FINISHED_INTENTS = [
-  ["open-crown", "Open Crown"],
-  ["cattleman", "Cattleman Crease"],
-  ["pinch-front", "Pinch Front"],
-  ["teardrop", "Teardrop"],
-  ["center-dent", "Center Dent"],
-];
-
 function loadInitialProject() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -55,9 +48,9 @@ function safeFilename(value) {
 export function App() {
   const [project, setProject] = useState(loadInitialProject);
   const [activeStep, setActiveStep] = useState(0);
-  const [previewMode, setPreviewMode] = useState("tooling");
   const [notice, setNotice] = useState("Project autosaves on this device.");
   const importRef = useRef(null);
+  const onlineOpenTrackedRef = useRef(false);
 
   const opening = useMemo(() => openingForProject(project), [project]);
   const profile = getProfile(project.profileId);
@@ -66,12 +59,18 @@ export function App() {
     circumferenceMm: opening.circumferenceMm,
     profileRatio: profile.ratio,
     crownHeightMm: project.crownHeightMm,
-    taperPct: project.taperPct,
-  }), [opening.circumferenceMm, profile.ratio, project.crownHeightMm, project.taperPct]);
+    taperDeg: project.taperDeg,
+  }), [opening.circumferenceMm, profile.ratio, project.crownHeightMm, project.taperDeg]);
   const meshReport = useMemo(() => validateMesh(mesh), [mesh]);
   const fullExportReady = calibrationComplete && profile.status === "reference-calibrated" && meshReport.valid;
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(project)), [project]);
+
+  useEffect(() => {
+    if (onlineOpenTrackedRef.current) return;
+    onlineOpenTrackedRef.current = true;
+    trackUsageEvent("online_open");
+  }, []);
 
   function patchProject(patch, event) {
     setProject((current) => touchProject({ ...current, ...patch }, event));
@@ -124,13 +123,12 @@ export function App() {
       `Project: ${project.projectName}`,
       `Customer: ${project.customerName || "Not recorded"}`,
       "Tooling: Standard Open Crown",
-      `Finished intent: ${FINISHED_INTENTS.find(([id]) => id === project.finishedIntent)?.[1]}`,
+      "Crown finish: Uncreased open crown; final creases are shaped by hand",
       `Size: ${displayHatSize(project.hatSize)} / ${opening.finishedCircumferenceMm.toFixed(1)} mm finished circumference`,
       `Governed tooling circumference: ${opening.circumferenceMm.toFixed(1)} mm`,
       `Profile: ${profile.id} — ${profile.name} (${profile.status})`,
       `Opening: ${opening.lengthMm.toFixed(2)} × ${opening.widthMm.toFixed(2)} mm`,
       `Crown height: ${project.crownHeightMm.toFixed(1)} mm`,
-      `Brim intent: ${project.brimWidthMm.toFixed(1)} mm`,
       `Printer: ${project.printer.model}`,
       `Filament: ${project.filament.brand} ${project.filament.name} ${project.filament.material}`.trim(),
       `Pin fit: ${project.calibration.pinDiameterMm} mm pin / ${project.calibration.selectedHoleMm} mm selected hole`,
@@ -147,7 +145,7 @@ export function App() {
   }
 
   function exportCrown(scale) {
-    const exportMesh = createOpenCrownMesh({ circumferenceMm: opening.circumferenceMm, profileRatio: profile.ratio, crownHeightMm: project.crownHeightMm, taperPct: project.taperPct, scale });
+    const exportMesh = createOpenCrownMesh({ circumferenceMm: opening.circumferenceMm, profileRatio: profile.ratio, crownHeightMm: project.crownHeightMm, taperDeg: project.taperDeg, scale });
     const report = validateMesh(exportMesh);
     if (!report.valid) {
       setNotice(`Export stopped: ${report.errors.join(" ")}`);
@@ -155,6 +153,7 @@ export function App() {
     }
     const suffix = scale === 1 ? "prototype-full-scale" : "quarter-scale-proof";
     downloadText(`${safeFilename(project.projectName)}-${profile.id.toLowerCase()}-${suffix}.stl`, meshToAsciiStl(exportMesh, `blocksmith_${profile.id.toLowerCase()}_${suffix.replaceAll("-", "_")}`), "model/stl");
+    trackUsageEvent("stl_export", scale === 1 ? "full-scale" : "quarter-scale");
     setNotice(scale === 1
       ? "Prototype full-scale crown STL exported; the first physical print remains a validation article."
       : "Quarter-scale proof crown STL exported.");
@@ -189,11 +188,10 @@ export function App() {
     if (activeStep === 1) {
       return (
         <>
-          <h2>Finished Hat Intent</h2>
-          <p className="panel-intro">The printable block remains an open crown. This choice previews later hand-shaping.</p>
-          <fieldset className="radio-list"><legend className="sr-only">Finished hat intent</legend>{FINISHED_INTENTS.map(([id, label]) => <label key={id} className={project.finishedIntent === id ? "is-selected" : ""}><input type="radio" name="intent" checked={project.finishedIntent === id} onChange={() => patchProject({ finishedIntent: id }, `Finished intent set to ${label}`)} /><img className="intent-thumb" src={INTENT_IMAGES[id]} alt="" aria-hidden="true" /><span>{label}</span></label>)}</fieldset>
+          <h2>Open-Crown Block</h2>
+          <p className="panel-intro">This workshop generates the uncreased crown block. Final creases and shaping are done by hand after printing.</p>
           <div className="tooling-lock"><strong>Tooling geometry</strong><span>Standard Open Crown</span></div>
-          <fieldset className="segmented-field"><legend>Hat material</legend>{[["felt", "Felt"], ["straw", "Straw"], ["fabric", "Fabric"]].map(([id, label]) => <button key={id} className={project.material === id ? "is-selected" : ""} onClick={() => patchProject({ material: id })}>{label}</button>)}</fieldset>
+          <div className="callout"><strong>Shape it by hand</strong><span>No crease or finished-hat style is built into the STL.</span></div>
         </>
       );
     }
@@ -223,8 +221,8 @@ export function App() {
     if (activeStep === 4) {
       return (
         <>
-          <h2>Use the Tooling</h2><p className="panel-intro">The open crown supports later hand-shaping without locking the maker into one crease.</p>
-          <ol className="instruction-list"><li>Inspect all seams, pin engagement, and surface continuity.</li><li>Protect the felt and warm it gradually with controlled steam.</li><li>Seat the crown evenly; do not force a cold or dry body.</li><li>Allow the hat to cool and dry fully before removal.</li><li>Inspect the felt surface and record the result.</li></ol>
+          <h2>Use the Tooling</h2><p className="panel-intro">The open crown supports later hand-shaping without locking the maker into one crease or hat-body material.</p>
+          <ol className="instruction-list"><li>Inspect all seams, pin engagement, and surface continuity.</li><li>Protect the hat body and warm it gradually using the method appropriate for its material.</li><li>Seat the crown evenly; do not force a cold or dry body.</li><li>Allow the hat to cool and dry fully before removal.</li><li>Inspect the hat-body surface and record the result.</li></ol>
           <div className="warning-callout">Heat, steam, and hot tooling can burn. Follow equipment and material safety guidance.</div>
         </>
       );
@@ -232,7 +230,7 @@ export function App() {
     if (activeStep === 5) {
       return (
         <>
-          <h2>Verify the Print</h2><p className="panel-intro">Are you satisfied with dimensional fit, seams, and the formed felt surface?</p>
+          <h2>Verify the Print</h2><p className="panel-intro">Are you satisfied with dimensional fit, seams, and the formed hat-body surface?</p>
           <div className="result-buttons"><button className={project.printResult.status === "satisfied" ? "is-selected" : ""} onClick={() => recordPrintResult("satisfied")}>Yes — Accept</button><button className={project.printResult.status === "needs-attention" ? "is-selected" : ""} onClick={() => recordPrintResult("needs-attention")}>No — Troubleshoot</button></div>
           <Field label="Inspection notes"><textarea rows="6" value={project.printResult.notes} onChange={(event) => patchNested("printResult", { notes: event.target.value })} placeholder="Surface marks, dimensional observations, pin fit, slicer changes…" /></Field>
           {project.printResult.status === "needs-attention" ? <div className="warning-callout">Rerun the calibration coupon first, confirm the filament record, inspect slicer scaling and seam orientation, then create a revised proof print.</div> : null}
@@ -254,10 +252,9 @@ export function App() {
       return (
         <>
           <h2>Governed Controls</h2><div className="governed-summary"><span>Finished size</span><strong>{sizeLabel}</strong></div>
-          <fieldset className="profile-picker"><legend>Standard head profile</legend>{Object.values(PROFILE_CATALOG).map((item) => <button key={item.id} className={project.profileId === item.id ? "is-selected" : ""} onClick={() => patchProject({ profileId: item.id }, `Profile changed to ${item.name}`)} title={item.note}><strong>{item.id}</strong><span>{item.name}</span></button>)}</fieldset>
+          <fieldset className="profile-picker"><legend>Block shape</legend>{Object.values(PROFILE_CATALOG).map((item) => <button key={item.id} className={project.profileId === item.id ? "is-selected" : ""} onClick={() => patchProject({ profileId: item.id }, `Block shape changed to ${item.name}`)} title={item.note}><strong>{item.id}</strong><span>{item.name}</span></button>)}</fieldset>
           <div className="dimension-table"><span>Opening</span><strong>{opening.lengthMm.toFixed(1)} × {opening.widthMm.toFixed(1)} mm</strong><span>Tooling circumference</span><strong>{opening.circumferenceMm.toFixed(1)} mm</strong><span>Profile status</span><StatusPill tone={profile.status === "reference-calibrated" ? "ready" : "warn"}>{profile.status}</StatusPill></div>
-          <Field label={`Brim intent (${project.units === "metric" ? "mm" : "in"})`} hint="Finished-hat preview only in v0.1."><input type="number" min={project.units === "metric" ? 38 : 1.5} max={project.units === "metric" ? 127 : 5} step={project.units === "metric" ? 0.5 : 0.05} value={project.units === "metric" ? project.brimWidthMm : (project.brimWidthMm / MM_PER_INCH).toFixed(2)} onChange={(event) => patchProject({ brimWidthMm: project.units === "metric" ? Number(event.target.value) : Number(event.target.value) * MM_PER_INCH })} /></Field>
-          <details className="advanced-controls"><summary>Advanced crown geometry</summary><Field label={`Crown height (${project.units === "metric" ? "mm" : "in"})`}><input type="number" min={project.units === "metric" ? 100 : 3.94} max={project.units === "metric" ? 200 : 7.87} step={project.units === "metric" ? 0.5 : 0.01} value={project.units === "metric" ? project.crownHeightMm : (project.crownHeightMm / MM_PER_INCH).toFixed(2)} onChange={(event) => patchProject({ crownHeightMm: project.units === "metric" ? Number(event.target.value) : Number(event.target.value) * MM_PER_INCH })} /></Field><Field label="Crown taper (%)"><input type="range" min="0" max="12" step="0.5" value={project.taperPct} onChange={(event) => patchProject({ taperPct: Number(event.target.value) })} /><output>{project.taperPct.toFixed(1)}%</output></Field></details>
+          <div className="advanced-controls"><Field label={`Crown height (${project.units === "metric" ? "mm" : "in"})`}><input type="number" min={project.units === "metric" ? 100 : 3.94} max={project.units === "metric" ? 200 : 7.87} step={project.units === "metric" ? 0.5 : 0.01} value={project.units === "metric" ? project.crownHeightMm : (project.crownHeightMm / MM_PER_INCH).toFixed(2)} onChange={(event) => patchProject({ crownHeightMm: project.units === "metric" ? Number(event.target.value) : Number(event.target.value) * MM_PER_INCH })} /></Field><Field label="Crown taper (degrees)" hint="Wall angle from vertical; default 2°. Zero makes a straight-sided crown."><input type="range" min="0" max="8" step="0.25" value={project.taperDeg} onChange={(event) => patchProject({ taperDeg: Number(event.target.value) })} /><output>{project.taperDeg.toFixed(2)}°</output></Field></div>
           <p className="governed-note">{profile.status === "reference-calibrated" ? "Reference-linked to the BMFS R baseline." : "Physical validation pending—proof exports only."}</p>
         </>
       );
@@ -284,7 +281,7 @@ export function App() {
       );
     }
     if (activeStep === 4) {
-      return <><h2>Handling Checks</h2><ReadinessRow ok={calibrationComplete} label="Pins verified" detail={`${project.calibration.pinDiameterMm} mm measured pin stock`} /><ReadinessRow ok={project.printResult.status !== "needs-attention"} label="Surface condition" detail="Inspect before and after forming" /><ReadinessRow ok={Boolean(project.filament.material)} label="Material traceability" detail={`${project.filament.brand || "Unrecorded brand"} ${project.filament.material}`} /><div className="callout"><strong>Felt witness test</strong><span>Photograph the felt before forming, after seating, and after removal—especially across modular seams.</span></div></>;
+      return <><h2>Handling Checks</h2><ReadinessRow ok={calibrationComplete} label="Pins verified" detail={`${project.calibration.pinDiameterMm} mm measured pin stock`} /><ReadinessRow ok={project.printResult.status !== "needs-attention"} label="Surface condition" detail="Inspect before and after forming" /><ReadinessRow ok={Boolean(project.filament.material)} label="Material traceability" detail={`${project.filament.brand || "Unrecorded brand"} ${project.filament.material}`} /><div className="callout"><strong>Hat-body witness test</strong><span>Photograph the hat body before forming, after seating, and after removal—especially across modular seams.</span></div></>;
     }
     if (activeStep === 5) {
       return <><h2>Recovery Path</h2><ReadinessRow ok={project.printResult.status === "satisfied"} label="User acceptance" detail={project.printResult.status === "not-recorded" ? "Awaiting result" : project.printResult.status} /><ReadinessRow ok={calibrationComplete} label="Calibration record" detail={calibrationComplete ? "Available for diagnosis" : "Incomplete—rerun coupon"} /><ReadinessRow ok={Boolean(project.filament.brand && project.filament.material)} label="Filament trace" detail={project.filament.brand ? `${project.filament.brand} ${project.filament.material}` : "Add brand and material"} /><button className="secondary-button full-width" onClick={() => openStep(2)}>Return to Calibration</button><button className="secondary-button full-width" onClick={() => openStep(3)}>Review Print Record</button></>;
@@ -301,12 +298,12 @@ export function App() {
     <main className="studio-shell">
       <div className="studio-backdrop" aria-hidden="true" />
       <section className="workstation" aria-label="Blocksmith Studio workstation">
-        <header className="studio-header"><div className="title-plaque"><p>BLOCKSMITH STUDIO</p><span>THE MILLINER'S WORKSTATION</span></div><div className="project-actions"><button onClick={startNewProject}>New Project</button><button onClick={() => importRef.current?.click()}>Import</button><button onClick={exportProject}>Save Copy</button><a className="support-link" href="https://ko-fi.com/blocksmithhatmaker" target="_blank" rel="noreferrer">Help Keep It Going</a><input ref={importRef} className="sr-only" type="file" accept=".json,.blocksmith" onChange={importProject} /></div></header>
+        <header className="studio-header"><div className="title-plaque"><p>BLOCKSMITH STUDIO</p><span>ONLINE WORKSHOP · RUNS ON THIS DEVICE</span></div><div className="project-actions"><button onClick={startNewProject}>New Project</button><button onClick={() => importRef.current?.click()}>Import</button><button onClick={exportProject}>Save Copy</button><a className="support-link" href="https://ko-fi.com/blocksmithhatmaker" target="_blank" rel="noreferrer">Help Keep It Going</a><input ref={importRef} className="sr-only" type="file" accept=".json,.blocksmith" onChange={importProject} /></div></header>
         <nav className="workflow-nav" aria-label="Hat Project workflow">{WORKFLOW.map((step, index) => <button key={step} className={activeStep === index ? "is-current" : index < activeStep ? "is-complete" : ""} onClick={() => openStep(index)} aria-current={activeStep === index ? "step" : undefined}><span>{index + 1}</span>{step}</button>)}</nav>
-        <div className="workspace-grid"><aside className="work-panel left-panel">{renderLeftPanel()}</aside><section className="drawing-board" aria-label="Interactive hat visualization"><div className="board-heading"><span>{previewMode === "tooling" ? "Manufacturing tooling preview" : "Finished-hat intent · illustrative"}</span><div className="preview-toggle" role="group" aria-label="Preview mode"><button className={previewMode === "tooling" ? "is-selected" : ""} onClick={() => setPreviewMode("tooling")}>Block</button><button className={previewMode === "finished" ? "is-selected" : ""} onClick={() => setPreviewMode("finished")}>Finished Hat</button></div></div><HatPreview project={project} opening={opening} mode={previewMode} /><div className="board-caption">{previewMode === "tooling" ? "Preview follows governed manufacturing parameters." : "Concept view only—creases do not alter the open-crown STL."}</div></section><aside className="work-panel right-panel">{renderRightPanel()}</aside></div>
+        <div className="workspace-grid"><aside className="work-panel left-panel">{renderLeftPanel()}</aside><section className="drawing-board" aria-label="Interactive crown-block visualization"><div className="board-heading"><span>Two-view crown-block profile preview</span></div><HatPreview project={project} opening={opening} /><div className="board-caption">Left: front-to-back, fixed across oval choices · Right: side-to-side, showing the selected oval profile.</div></section><aside className="work-panel right-panel">{renderRightPanel()}</aside></div>
         <section className="progress-bench" aria-label="Current workflow progress"><div className="progress-title"><span>Hat Project Progression</span><strong>{WORKFLOW[activeStep]}</strong></div><div className="progress-rail">{WORKFLOW.map((step, index) => <button key={step} className={index === activeStep ? "is-current" : index < activeStep ? "is-complete" : ""} onClick={() => openStep(index)}><span aria-hidden="true">{index < activeStep ? "✓" : index + 1}</span>{step}</button>)}</div><button className="primary-button bench-action" onClick={activeStep === WORKFLOW.length - 1 ? exportProject : nextStep}>{primaryLabel}</button></section>
         <section className="support-workshop" aria-labelledby="support-workshop-title"><div><h2 id="support-workshop-title">Support the Workshop</h2><p>Blocksmith Works is free and always will be. We’re continuing to develop new tools—including printable brim blocks—and your optional support helps cover the website, testing materials, and ongoing development. Every contribution helps us keep building and sharing these tools with hat makers everywhere.</p></div><a className="support-button" href="https://ko-fi.com/blocksmithhatmaker" target="_blank" rel="noreferrer">Leave an Optional Tip</a></section>
-        <footer className="status-bar"><span>STANDARD OPEN CROWN</span><span>{profile.id} · {profile.name}</span><span>{(project.brimWidthMm / MM_PER_INCH).toFixed(2)} in brim intent</span><StatusPill tone={fullExportReady ? "ready" : "warn"}>{fullExportReady ? "PROTOTYPE EXPORT UNLOCKED" : "PROOF MODE"}</StatusPill><output aria-live="polite">{notice}</output></footer>
+        <footer className="status-bar"><span>STANDARD OPEN CROWN</span><span>{profile.id} · {profile.name}</span><span>{project.crownHeightMm.toFixed(1)} mm crown · {project.taperDeg.toFixed(2)}° taper</span><StatusPill tone={fullExportReady ? "ready" : "warn"}>{fullExportReady ? "PROTOTYPE EXPORT UNLOCKED" : "PROOF MODE"}</StatusPill><output aria-live="polite">{notice}</output><span title="Block designs remain in your browser; only anonymous open and STL-export totals are counted.">PRIVATE BY DESIGN</span></footer>
       </section>
     </main>
   );

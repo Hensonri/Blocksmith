@@ -4,6 +4,13 @@ export const BMFS_REFERENCE_CIRCUMFERENCE_MM = 570;
 export const BMFS_MM_PER_EIGHTH_SIZE = 10;
 
 export const PROFILE_CATALOG = Object.freeze({
+  TR: {
+    id: "TR",
+    name: "True Round",
+    ratio: 1,
+    status: "provisional",
+    note: "Circular historical block: front-to-back and side-to-side dimensions are identical. Physical validation is still required.",
+  },
   RO: {
     id: "RO",
     name: "Round Oval",

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /analytics
+
+Sitemap: https://blocksmithworks.com/sitemap.xml
